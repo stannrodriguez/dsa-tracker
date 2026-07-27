@@ -23,19 +23,34 @@ import {
   weekForDay,
   weekProgress,
 } from './derive'
-import { makeId, newState, normalize, todayISO } from './state'
+import { demoState, makeId, newState, normalize, todayISO } from './state'
 import { useSync } from './useSync'
 
 export default function App() {
   const sync = useSync()
+  const [demo, setDemo] = useState(true)
+  const demoSync = useMemo(
+    () => ({
+      state: demoState(),
+      setState: () => {},
+      offline: false,
+      saveFailed: false,
+      configured: false,
+      readOnly: true,
+      onExitDemo: () => setDemo(false),
+    }),
+    []
+  )
 
-  if (sync.needsSecret) return <Gate onSubmit={sync.submitSecret} />
+  if (demo) return <Tracker sync={demoSync} />
+  if (sync.needsSecret)
+    return <Gate onSubmit={sync.submitSecret} onDemo={() => setDemo(true)} />
   if (!sync.state) return null
 
   return <Tracker sync={sync} />
 }
 
-function Gate({ onSubmit }) {
+function Gate({ onSubmit, onDemo }) {
   const [value, setValue] = useState('')
   return (
     <div className="page">
@@ -58,6 +73,9 @@ function Gate({ onSubmit }) {
           <button className="btn-primary" type="submit" disabled={!value.trim()}>
             Save
           </button>
+          <button className="btn-demo" type="button" onClick={onDemo}>
+            Back to demo
+          </button>
         </div>
       </form>
     </div>
@@ -66,6 +84,7 @@ function Gate({ onSubmit }) {
 
 function Tracker({ sync }) {
   const { state, setState } = sync
+  const readOnly = !!sync.readOnly
   const today = todayISO()
 
   const flags = useMemo(() => autoFlags(state), [state])
@@ -105,7 +124,10 @@ function Tracker({ sync }) {
     <div className="page">
       <header className="header">
         <div>
-          <div className="label">DSA PUSH · 28 DAYS</div>
+          <div className="label">
+            DSA PUSH · 28 DAYS
+            {readOnly ? <span className="demo-chip">READ-ONLY DEMO</span> : null}
+          </div>
           <div className="daycount">
             <span className="day-big">{String(Math.max(1, day)).padStart(2, '0')}</span>
             <span className="day-total">/ 28</span>
@@ -149,6 +171,7 @@ function Tracker({ sync }) {
                   flags={flags}
                   isNow={w.n === currentWeek}
                   isOpen={w.n === open}
+                  readOnly={readOnly}
                   onToggleOpen={() => setOpenWeek(w.n === open ? 0 : w.n)}
                   onToggleObjective={(i) => toggle('objectives', `${w.key}:${i}`)}
                 />
@@ -168,6 +191,7 @@ function Tracker({ sync }) {
                     key={text}
                     text={text}
                     checked={!!state.ladder[`lad:${i}`]}
+                    disabled={readOnly}
                     onChange={() => toggle('ladder', `lad:${i}`)}
                   />
                 ))}
@@ -185,6 +209,7 @@ function Tracker({ sync }) {
                     key={text}
                     text={text}
                     checked={!!state.machines[`mac:${i}`]}
+                    disabled={readOnly}
                     onChange={() => toggle('machines', `mac:${i}`)}
                   />
                 ))}
@@ -194,7 +219,7 @@ function Tracker({ sync }) {
 
           <section className="s-log log">
             <div className="label">LOG</div>
-            <LogList state={state} onDelete={removeProblem} />
+            <LogList state={state} onDelete={readOnly ? null : removeProblem} />
           </section>
         </div>
 
@@ -203,7 +228,13 @@ function Tracker({ sync }) {
             <div className="label" style={{ marginBottom: 8 }}>
               LOG A PROBLEM
             </div>
-            <LogForm onLog={addProblem} today={today} />
+            {readOnly ? (
+              <div className="card demo-note">
+                Sample progress only. Enter your passphrase to log your own work.
+              </div>
+            ) : (
+              <LogForm onLog={addProblem} today={today} />
+            )}
           </section>
 
           <section className="s-queue" style={{ marginTop: 24 }}>
@@ -223,9 +254,13 @@ function Tracker({ sync }) {
                         ? 'missed'
                         : `${p.minutes}m > ${targetFor(p.difficulty)}m`}
                     </span>
-                    <button className="btn-small" onClick={() => markReviewed(p.id)}>
-                      Re-solved cold
-                    </button>
+                    {readOnly ? (
+                      <span className="tag">read-only</span>
+                    ) : (
+                      <button className="btn-small" onClick={() => markReviewed(p.id)}>
+                        Re-solved cold
+                      </button>
+                    )}
                   </div>
                 ))
               )}
@@ -238,11 +273,13 @@ function Tracker({ sync }) {
               <Rep
                 value={state.mocks}
                 label="human mocks"
+                disabled={readOnly}
                 onStep={(d) => bump('mocks', d)}
               />
               <Rep
                 value={state.contests}
                 label="contests"
+                disabled={readOnly}
                 onStep={(d) => bump('contests', d)}
               />
             </div>
@@ -315,7 +352,16 @@ function Stats({ state, today }) {
   )
 }
 
-function WeekCard({ week, state, flags, isNow, isOpen, onToggleOpen, onToggleObjective }) {
+function WeekCard({
+  week,
+  state,
+  flags,
+  isNow,
+  isOpen,
+  readOnly,
+  onToggleOpen,
+  onToggleObjective,
+}) {
   const { done, total } = weekProgress(state, flags, week)
   return (
     <div className={`week${isOpen ? ' open' : ''}`}>
@@ -344,6 +390,7 @@ function WeekCard({ week, state, flags, isNow, isOpen, onToggleOpen, onToggleObj
                 text={o.text}
                 checked={objectiveChecked(state, flags, week, i)}
                 auto={!!o.auto}
+                disabled={readOnly}
                 onChange={() => onToggleObjective(i)}
               />
             ))}
@@ -354,15 +401,21 @@ function WeekCard({ week, state, flags, isNow, isOpen, onToggleOpen, onToggleObj
   )
 }
 
-function CheckRow({ text, checked, onChange, auto }) {
+function CheckRow({ text, checked, onChange, auto, disabled }) {
   const body = (
     <>
-      <input type="checkbox" checked={checked} disabled={auto} readOnly={auto} onChange={auto ? undefined : onChange} />
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={auto || disabled}
+        readOnly={auto || disabled}
+        onChange={auto || disabled ? undefined : onChange}
+      />
       <span className={checked ? 'done' : undefined}>{text}</span>
       {auto ? <span className="tag">auto</span> : null}
     </>
   )
-  if (auto) return <div className="check-row auto">{body}</div>
+  if (auto || disabled) return <div className={`check-row${auto ? ' auto' : ' disabled'}`}>{body}</div>
   return <label className="check-row">{body}</label>
 }
 
@@ -465,14 +518,24 @@ function LogForm({ onLog, today }) {
   )
 }
 
-function Rep({ value, label, onStep }) {
+function Rep({ value, label, onStep, disabled }) {
   return (
     <div className="rep">
-      <button className="step" onClick={() => onStep(-1)} aria-label={`${label} minus one`}>
+      <button
+        className="step"
+        disabled={disabled}
+        onClick={() => onStep(-1)}
+        aria-label={`${label} minus one`}
+      >
         −
       </button>
       <span className="rep-count">{value}/4</span>
-      <button className="step" onClick={() => onStep(1)} aria-label={`${label} plus one`}>
+      <button
+        className="step"
+        disabled={disabled}
+        onClick={() => onStep(1)}
+        aria-label={`${label} plus one`}
+      >
         +
       </button>
       <span className="rep-label">{label}</span>
@@ -518,9 +581,11 @@ function LogList({ state, onDelete }) {
                   <i className="over" style={{ width: `${overWidth * 100}%` }} />
                 </span>
                 <span className={`log-min${over ? ' bad' : ''}`}>{p.minutes}m</span>
-                <button className="del" onClick={() => onDelete(p.id)} aria-label="delete">
-                  ×
-                </button>
+                {onDelete ? (
+                  <button className="del" onClick={() => onDelete(p.id)} aria-label="delete">
+                    ×
+                  </button>
+                ) : null}
               </div>
             )
           })}
@@ -565,26 +630,35 @@ function Footer({ sync, state, setState, onReset }) {
     <div className="footer s-footer">
       {note ? <span className={`note${sync.saveFailed ? ' warn' : ''}`}>{note}</span> : null}
       <div className="footer-links">
+        {sync.readOnly ? (
+          <button className="linkish" onClick={sync.onExitDemo}>
+            Use private tracker
+          </button>
+        ) : null}
         <button className="linkish" onClick={exportJson}>
           Export JSON
         </button>
-        <button className="linkish" onClick={() => fileRef.current?.click()}>
-          Import JSON
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) importJson(f)
-            e.target.value = ''
-          }}
-        />
-        <button className="linkish" onClick={onReset}>
-          Reset everything
-        </button>
+        {!sync.readOnly ? (
+          <>
+            <button className="linkish" onClick={() => fileRef.current?.click()}>
+              Import JSON
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) importJson(f)
+                e.target.value = ''
+              }}
+            />
+            <button className="linkish" onClick={onReset}>
+              Reset everything
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   )
