@@ -28,7 +28,7 @@ import { useSync } from './useSync'
 
 export default function App() {
   const sync = useSync()
-  const [demo, setDemo] = useState(false)
+  const [demo, setDemo] = useState(true)
   const demoSync = useMemo(
     () => ({
       state: demoState(),
@@ -42,11 +42,12 @@ export default function App() {
     []
   )
 
-  if (sync.needsSecret && !demo)
+  if (demo) return <Tracker sync={demoSync} />
+  if (sync.needsSecret)
     return <Gate onSubmit={sync.submitSecret} onDemo={() => setDemo(true)} />
-  if (!sync.state && !demo) return null
+  if (!sync.state) return null
 
-  return <Tracker sync={demo ? demoSync : sync} />
+  return <Tracker sync={sync} />
 }
 
 function Gate({ onSubmit, onDemo }) {
@@ -73,7 +74,7 @@ function Gate({ onSubmit, onDemo }) {
             Save
           </button>
           <button className="btn-demo" type="button" onClick={onDemo}>
-            View read-only demo
+            Back to demo
           </button>
         </div>
       </form>
