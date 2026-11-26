@@ -90,11 +90,11 @@ export function nudge(state, today = todayISO()) {
   const hMed = medianFor(state.problems, 'hard')
 
   if (day >= 28) return '28 days done.'
-  if (loggedToday === 0) return '0 logged today.'
-  if (queue.length >= 3) return `${queue.length} in the review queue.`
+  if (loggedToday === 0) return 'No problems logged today.'
+  if (queue.length >= 3) return `${queue.length} problems in the review queue.`
   if (mMed !== null && hMed !== null && mMed <= TARGETS.medium && hMed <= TARGETS.hard)
-    return `Medians ${mMed}/15 and ${hMed}/40. Both under.`
-  if (loggedToday >= 4) return `${loggedToday} logged today.`
+    return `Medians ${mMed}/${TARGETS.medium}m and ${hMed}/${TARGETS.hard}m. Both under target.`
+  if (loggedToday >= 4) return `${loggedToday} problems logged today.`
   const s = streak(state.problems, today)
   if (s >= 3) return `${s}-day streak.`
   return ''

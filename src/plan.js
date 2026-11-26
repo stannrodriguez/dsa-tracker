@@ -86,9 +86,9 @@ export const WEEKS = [
       { text: 'Exchange greedy ×3: Jump Game II, Gas Station, Candy' },
       { text: 'Intervals: Merge, Non-overlapping, Meeting Rooms II' },
       { text: 'Dijkstra ×2: Network Delay, Min Effort Path' },
-      { text: 'Trie: one session — Implement Trie, Word Search II' },
+      { text: 'Trie: one session (Implement Trie, Word Search II)' },
       { text: 'Min-cost matching, recognition only' },
-      { text: 'Scheduling ladder — all 8 rungs', auto: 'ladderAll' },
+      { text: 'Scheduling ladder: all 8 rungs', auto: 'ladderAll' },
       { text: 'Second human mock', auto: 'mocks2' },
       { text: 'Two 45-min timed blocks' },
       { text: 'Mystery set: 1-2 unlabeled problems daily' },
@@ -119,8 +119,8 @@ export const WEEKS = [
 ]
 
 export const LADDER = [
-  'Schedule generator — part 1: all valid schedules',
-  'Schedule generator — part 2: optimize for cost',
+  'Schedule generator, part 1: all valid schedules',
+  'Schedule generator, part 2: optimize for cost',
   'Meeting Rooms II',
   'Task Scheduler',
   'Partition to K Equal Sum Subsets',

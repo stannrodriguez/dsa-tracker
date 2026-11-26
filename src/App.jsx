@@ -61,17 +61,19 @@ function Gate({ onSubmit, onDemo }) {
           onSubmit(value)
         }}
       >
-        <div className="label">enter your sync passphrase</div>
+        <div className="label">SYNC PASSPHRASE</div>
         <div className="stack">
           <input
             className="input"
             type="password"
+            placeholder="Enter sync passphrase"
+            aria-label="Sync passphrase"
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
           />
           <button className="btn-primary" type="submit" disabled={!value.trim()}>
-            Save
+            Open tracker
           </button>
           <button className="btn-demo" type="button" onClick={onDemo}>
             Back to demo
@@ -112,7 +114,12 @@ function Tracker({ sync }) {
     setState((s) => ({ ...s, [key]: Math.max(0, (s[key] || 0) + delta) }))
 
   const reset = () => {
-    if (!window.confirm('Reset everything?')) return
+    if (
+      !window.confirm(
+        'Reset all logged problems, checklists, and rep counts, and restart Day 1 from today?'
+      )
+    )
+      return
     setState(newState())
     setOpenWeek(null)
   }
@@ -135,7 +142,7 @@ function Tracker({ sync }) {
           {line ? <div className="nudge">{line}</div> : null}
         </div>
         <div className="week-now">
-          Week {currentWeek} — <b>{week.title}</b>
+          Week {currentWeek}: <b>{week.title}</b>
         </div>
       </header>
 
@@ -230,7 +237,7 @@ function Tracker({ sync }) {
             </div>
             {readOnly ? (
               <div className="card demo-note">
-                Sample progress only. Enter your passphrase to log your own work.
+                Sample progress only. Select "Use private tracker" below to log your own work.
               </div>
             ) : (
               <LogForm onLog={addProblem} today={today} />
@@ -243,7 +250,9 @@ function Tracker({ sync }) {
             </div>
             <div className="card">
               {queue.length === 0 ? (
-                <div className="empty">Empty. Missed or over-target problems land here.</div>
+                <div className="empty">
+                  No problems to review. Missed or over-target problems appear here.
+                </div>
               ) : (
                 queue.map((p) => (
                   <div className="q-row" key={p.id}>
@@ -257,7 +266,12 @@ function Tracker({ sync }) {
                     {readOnly ? (
                       <span className="tag">read-only</span>
                     ) : (
-                      <button className="btn-small" onClick={() => markReviewed(p.id)}>
+                      <button
+                        className="btn-small"
+                        onClick={() => markReviewed(p.id)}
+                        aria-label={`Re-solved cold: ${p.name}`}
+                        title="Mark as reviewed"
+                      >
                         Re-solved cold
                       </button>
                     )}
@@ -306,7 +320,7 @@ function Grid({ state, today }) {
           ]
             .filter(Boolean)
             .join(' ')}
-          title={`${c.date} · ${c.count}`}
+          title={`Day ${c.day} (${c.date}) · ${c.count} ${c.count === 1 ? 'problem' : 'problems'}`}
         />
       ))}
     </div>
@@ -320,12 +334,12 @@ function Stats({ state, today }) {
     <div className="stats">
       <div className="stat solved">
         <div className="stat-value">{state.problems.length}</div>
-        <div className="stat-label">solved total</div>
+        <div className="stat-label">problems logged</div>
       </div>
       <div className="stat med-medium">
         <div className="stat-value">
           {med === null ? (
-            '—'
+            '--'
           ) : (
             <span className={med <= TARGETS.medium ? 'good' : 'bad'}>{med}</span>
           )}
@@ -336,7 +350,7 @@ function Stats({ state, today }) {
       <div className="stat med-hard">
         <div className="stat-value">
           {hard === null ? (
-            '—'
+            '--'
           ) : (
             <span className={hard <= TARGETS.hard ? 'good' : 'bad'}>{hard}</span>
           )}
@@ -381,7 +395,7 @@ function WeekCard({
           <div className="week-body">
             <p className="goal">{week.goal}</p>
             <p className="drill">
-              <span className="drill-label">The drill —</span>
+              <span className="drill-label">The drill:</span>
               {week.drill}
             </p>
             {week.objectives.map((o, i) => (
@@ -455,19 +469,26 @@ function LogForm({ onLog, today }) {
         <input
           className="input"
           placeholder="Problem name"
+          aria-label="Problem name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <input
           className="input min"
-          placeholder="min"
+          placeholder="Minutes"
+          aria-label="Minutes"
           inputMode="numeric"
           value={minutes}
           onChange={(e) => setMinutes(e.target.value.replace(/[^0-9]/g, ''))}
         />
       </div>
 
-      <select className="input" value={pattern} onChange={(e) => setPattern(e.target.value)}>
+      <select
+        className="input"
+        aria-label="Pattern"
+        value={pattern}
+        onChange={(e) => setPattern(e.target.value)}
+      >
         {PATTERNS.map((p) => (
           <option key={p} value={p}>
             {p}
@@ -512,7 +533,7 @@ function LogForm({ onLog, today }) {
       </div>
 
       <button className="btn-primary" type="submit" disabled={!valid}>
-        Log it
+        Log problem
       </button>
     </form>
   )
@@ -525,7 +546,7 @@ function Rep({ value, label, onStep, disabled }) {
         className="step"
         disabled={disabled}
         onClick={() => onStep(-1)}
-        aria-label={`${label} minus one`}
+        aria-label={`Decrease ${label}`}
       >
         −
       </button>
@@ -534,7 +555,7 @@ function Rep({ value, label, onStep, disabled }) {
         className="step"
         disabled={disabled}
         onClick={() => onStep(1)}
-        aria-label={`${label} plus one`}
+        aria-label={`Increase ${label}`}
       >
         +
       </button>
@@ -582,7 +603,12 @@ function LogList({ state, onDelete }) {
                 </span>
                 <span className={`log-min${over ? ' bad' : ''}`}>{p.minutes}m</span>
                 {onDelete ? (
-                  <button className="del" onClick={() => onDelete(p.id)} aria-label="delete">
+                  <button
+                    className="del"
+                    onClick={() => onDelete(p.id)}
+                    aria-label={`Delete ${p.name}`}
+                    title={`Delete ${p.name}`}
+                  >
                     ×
                   </button>
                 ) : null}
@@ -614,16 +640,16 @@ function Footer({ sync, state, setState, onReset }) {
       try {
         setState(normalize(JSON.parse(String(reader.result))))
       } catch {
-        window.alert('That file is not valid tracker JSON.')
+        window.alert('Could not import file. Choose a valid JSON file exported from this tracker.')
       }
     }
     reader.readAsText(file)
   }
 
   const note = sync.saveFailed
-    ? 'save failed — retrying'
+    ? 'Save failed. Retrying.'
     : sync.offline
-      ? 'offline — will sync'
+      ? 'Offline. Will sync.'
       : ''
 
   return (
